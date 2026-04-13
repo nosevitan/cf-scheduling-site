@@ -36,7 +36,7 @@ export default function Home() {
   const [result, setResult] = useState<ScheduleResult | null>(null);
   const [error, setError] = useState("");
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://enterprise.tail3be075.ts.net";
 
   const handleScreenshotDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
