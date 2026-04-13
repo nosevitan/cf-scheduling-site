@@ -239,6 +239,9 @@ export default function Home() {
               <div className="flex items-center gap-4 mb-2">
                 <label className="block text-sm font-medium text-zinc-300">
                   Conferences
+                  <span className="text-zinc-500 ml-2 font-normal">
+                    (user/real teams only — filler teams are detected from screenshots)
+                  </span>
                 </label>
                 <div className="flex gap-2 text-xs">
                   <button
@@ -267,7 +270,7 @@ export default function Home() {
               {conferenceMode === "text" ? (
                 <textarea
                   className="w-full h-48 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-sm font-mono text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  placeholder={`SEC: Oklahoma, Texas, Auburn, SMU | Washington St., Wisconsin, Virginia Tech, Cincinnati\nBig 12: Ohio State, Colorado, Arkansas, North Carolina | Missouri, Louisville, California, Oklahoma State\n...`}
+                  placeholder={`SEC: Oklahoma, Texas, Auburn, SMU\nBig 12: Ohio State, Colorado, Arkansas, North Carolina\nBig Ten: Oregon, Maryland, UCLA, Nebraska, Ole Miss\nACC: Clemson, Indiana, Tennessee, USC\nPac-12: Texas A&M, LSU, Texas Tech, TCU\nCUSA: Alabama, Georgia, Penn State, Florida\nAAC: Notre Dame, Miami, South Carolina, Michigan`}
                   value={conferences}
                   onChange={(e) => setConferences(e.target.value)}
                 />
