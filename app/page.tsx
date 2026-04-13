@@ -49,11 +49,10 @@ function compressImage(file: File): Promise<Blob> {
 
 export default function Home() {
   const [rankings, setRankings] = useState("");
-  const [conferences, setConferences] = useState("");
-  const [conferenceMode, setConferenceMode] = useState<"text" | "screenshot">(
-    "text"
-  );
-  const [conferenceImage, setConferenceImage] = useState<File | null>(null);
+  const [conferencesUser, setConferencesUser] = useState("");
+  const [conferencesFiller, setConferencesFiller] = useState("");
+  const [rivalries, setRivalries] = useState("");
+  const [additionalLocks, setAdditionalLocks] = useState("");
   const [screenshots, setScreenshots] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
@@ -88,8 +87,12 @@ export default function Home() {
       setError("Please upload schedule screenshots");
       return;
     }
-    if (conferenceMode === "text" && !conferences.trim()) {
-      setError("Please enter conference data");
+    if (!conferencesUser.trim()) {
+      setError("Please enter user team conferences");
+      return;
+    }
+    if (!conferencesFiller.trim()) {
+      setError("Please enter filler team conferences");
       return;
     }
 
@@ -113,12 +116,10 @@ export default function Home() {
       setProgress(45);
       const formData = new FormData();
       formData.append("rankings", rankings);
-
-      if (conferenceMode === "text") {
-        formData.append("conferences", conferences);
-      } else if (conferenceImage) {
-        formData.append("conference_image", conferenceImage);
-      }
+      formData.append("conferences_user", conferencesUser);
+      formData.append("conferences_filler", conferencesFiller);
+      formData.append("rivalries", rivalries);
+      formData.append("additional_locks", additionalLocks);
 
       compressed.forEach((blob, i) => {
         formData.append(
@@ -234,71 +235,62 @@ export default function Home() {
               />
             </section>
 
-            {/* Conferences */}
+            {/* Conferences — User Teams */}
             <section>
-              <div className="flex items-center gap-4 mb-2">
-                <label className="block text-sm font-medium text-zinc-300">
-                  Conferences
-                  <span className="text-zinc-500 ml-2 font-normal">
-                    (user/real teams only — filler teams are detected from screenshots)
-                  </span>
-                </label>
-                <div className="flex gap-2 text-xs">
-                  <button
-                    className={`px-3 py-1 rounded-full border ${
-                      conferenceMode === "text"
-                        ? "bg-blue-600 border-blue-500 text-white"
-                        : "border-zinc-600 text-zinc-400 hover:border-zinc-500"
-                    }`}
-                    onClick={() => setConferenceMode("text")}
-                  >
-                    Text
-                  </button>
-                  <button
-                    className={`px-3 py-1 rounded-full border ${
-                      conferenceMode === "screenshot"
-                        ? "bg-blue-600 border-blue-500 text-white"
-                        : "border-zinc-600 text-zinc-400 hover:border-zinc-500"
-                    }`}
-                    onClick={() => setConferenceMode("screenshot")}
-                  >
-                    Screenshot
-                  </button>
-                </div>
-              </div>
+              <label className="block text-sm font-medium text-zinc-300 mb-2">
+                Conferences &mdash; User Teams
+              </label>
+              <textarea
+                className="w-full h-48 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-sm font-mono text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                placeholder={`SEC: Oklahoma, Texas, Auburn, SMU\nBig 12: Ohio State, Colorado, Arkansas, North Carolina\nBig Ten: Oregon, Maryland, UCLA, Nebraska, Ole Miss\nACC: Clemson, Indiana, Tennessee, USC\nPac-12: Texas A&M, LSU, Texas Tech, TCU\nCUSA: Alabama, Georgia, Penn State, Florida\nAAC: Notre Dame, Miami, South Carolina, Michigan`}
+                value={conferencesUser}
+                onChange={(e) => setConferencesUser(e.target.value)}
+              />
+            </section>
 
-              {conferenceMode === "text" ? (
-                <textarea
-                  className="w-full h-48 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-sm font-mono text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  placeholder={`SEC: Oklahoma, Texas, Auburn, SMU\nBig 12: Ohio State, Colorado, Arkansas, North Carolina\nBig Ten: Oregon, Maryland, UCLA, Nebraska, Ole Miss\nACC: Clemson, Indiana, Tennessee, USC\nPac-12: Texas A&M, LSU, Texas Tech, TCU\nCUSA: Alabama, Georgia, Penn State, Florida\nAAC: Notre Dame, Miami, South Carolina, Michigan`}
-                  value={conferences}
-                  onChange={(e) => setConferences(e.target.value)}
-                />
-              ) : (
-                <div className="border-2 border-dashed border-zinc-700 rounded-lg p-6 text-center">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    id="conf-upload"
-                    onChange={(e) =>
-                      setConferenceImage(e.target.files?.[0] || null)
-                    }
-                  />
-                  <label
-                    htmlFor="conf-upload"
-                    className="cursor-pointer text-zinc-400 hover:text-zinc-300"
-                  >
-                    {conferenceImage ? (
-                      <span className="text-green-400">
-                        {conferenceImage.name}
-                      </span>
-                    ) : (
-                      "Click to upload conference screenshot"
-                    )}
-                  </label>
-                </div>
-              )}
+            {/* Conferences — Filler Teams */}
+            <section>
+              <label className="block text-sm font-medium text-zinc-300 mb-2">
+                Conferences &mdash; Filler Teams
+              </label>
+              <textarea
+                className="w-full h-48 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-sm font-mono text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                placeholder={`SEC: Washington St., Wisconsin, Virginia Tech, Cincinnati\nBig 12: Missouri, Louisville, California, Oklahoma State\nBig Ten: Rutgers, NC State, BYU\nACC: Arizona State, Pittsburgh, Baylor, Vanderbilt\nPac-12: Kansas, Kentucky, Florida State, Mississippi St.\nCUSA: Utah, Illinois, Arizona, Oregon State\nAAC: Washington, Iowa, Iowa State, Kansas State`}
+                value={conferencesFiller}
+                onChange={(e) => setConferencesFiller(e.target.value)}
+              />
+            </section>
+
+            {/* Protected Rivalries */}
+            <section>
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
+                Protected Rivalries
+              </label>
+              <p className="text-xs text-zinc-500 mb-2">
+                (one per line, e.g. Michigan vs Ohio State)
+              </p>
+              <textarea
+                className="w-full h-32 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-sm font-mono text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                placeholder={`Oklahoma vs Texas\nAuburn vs Alabama\nClemson vs South Carolina\nOhio State vs Michigan`}
+                value={rivalries}
+                onChange={(e) => setRivalries(e.target.value)}
+              />
+            </section>
+
+            {/* Additional Locked Games */}
+            <section>
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
+                Additional Locked Games
+              </label>
+              <p className="text-xs text-zinc-500 mb-2">
+                (games locked in-game that aren&apos;t conference or rivalry)
+              </p>
+              <textarea
+                className="w-full h-24 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-sm font-mono text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                placeholder={`South Carolina vs Kentucky W5\nOklahoma @ Georgia Tech W8`}
+                value={additionalLocks}
+                onChange={(e) => setAdditionalLocks(e.target.value)}
+              />
             </section>
 
             {/* Screenshots */}
