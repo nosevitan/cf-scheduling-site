@@ -25,18 +25,44 @@ type ScheduleResult = {
   };
 };
 
+// Compress image to max 1200px width, JPEG quality 0.7 (~50-100KB each)
+function compressImage(file: File): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const maxWidth = 1200;
+      const scale = Math.min(1, maxWidth / img.width);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => resolve(blob || new Blob()),
+        "image/jpeg",
+        0.7
+      );
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 export default function Home() {
   const [rankings, setRankings] = useState("");
   const [conferences, setConferences] = useState("");
-  const [conferenceMode, setConferenceMode] = useState<"text" | "screenshot">("text");
+  const [conferenceMode, setConferenceMode] = useState<"text" | "screenshot">(
+    "text"
+  );
   const [conferenceImage, setConferenceImage] = useState<File | null>(null);
   const [screenshots, setScreenshots] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
+  const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<ScheduleResult | null>(null);
   const [error, setError] = useState("");
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://enterprise.tail3be075.ts.net";
+  const API_URL =
+    process.env.NEXT_PUBLIC_API_URL || "https://enterprise.tail3be075.ts.net";
 
   const handleScreenshotDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -69,10 +95,22 @@ export default function Home() {
 
     setError("");
     setLoading(true);
-    setStatus("Uploading screenshots...");
+    setProgress(0);
     setResult(null);
 
     try {
+      // Step 1: Compress images
+      setStatus("Compressing screenshots...");
+      const compressed: Blob[] = [];
+      for (let i = 0; i < screenshots.length; i++) {
+        const blob = await compressImage(screenshots[i]);
+        compressed.push(blob);
+        setProgress(Math.round(((i + 1) / screenshots.length) * 40));
+      }
+
+      // Step 2: Build form data
+      setStatus("Uploading to server...");
+      setProgress(45);
       const formData = new FormData();
       formData.append("rankings", rankings);
 
@@ -82,27 +120,50 @@ export default function Home() {
         formData.append("conference_image", conferenceImage);
       }
 
-      screenshots.forEach((file) => {
-        formData.append("screenshots", file);
+      compressed.forEach((blob, i) => {
+        formData.append(
+          "screenshots",
+          blob,
+          screenshots[i].name || `screenshot_${i}.jpg`
+        );
       });
 
-      setStatus("Processing screenshots with OCR...");
+      // Step 3: Send to server
+      setStatus("Processing with OCR (this may take a few minutes)...");
+      setProgress(50);
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 600000); // 10 min timeout
 
       const response = await fetch(`${API_URL}/api/generate`, {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
 
+      clearTimeout(timeout);
+
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.detail || "Server error");
+        let errMsg = `Server error (${response.status})`;
+        try {
+          const err = await response.json();
+          errMsg = err.detail || errMsg;
+        } catch {
+          // ignore parse errors
+        }
+        throw new Error(errMsg);
       }
 
       setStatus("Schedule generated!");
+      setProgress(100);
       const data = await response.json();
       setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Request timed out. The server may still be processing.");
+      } else {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+      }
     } finally {
       setLoading(false);
     }
@@ -294,12 +355,27 @@ export default function Home() {
               </p>
             )}
 
+            {loading && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm text-zinc-400">
+                  <span>{status}</span>
+                  <span>{progress}%</span>
+                </div>
+                <div className="w-full bg-zinc-800 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             <button
               className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium py-3 px-6 rounded-lg transition-colors"
               onClick={handleSubmit}
               disabled={loading}
             >
-              {loading ? status : "Generate Schedule"}
+              {loading ? "Processing..." : "Generate Schedule"}
             </button>
           </div>
         ) : (
@@ -328,18 +404,9 @@ export default function Home() {
               {[
                 { label: "Avg SoS", value: result.stats.avgSoS.toFixed(2) },
                 { label: "Std Dev", value: result.stats.stdDev.toFixed(2) },
-                {
-                  label: "Spread",
-                  value: result.stats.spread.toFixed(1),
-                },
-                {
-                  label: "Week 0 Games",
-                  value: result.stats.week0Games,
-                },
-                {
-                  label: "OOC Games",
-                  value: result.stats.totalOOCGames,
-                },
+                { label: "Spread", value: result.stats.spread.toFixed(1) },
+                { label: "Week 0 Games", value: result.stats.week0Games },
+                { label: "OOC Games", value: result.stats.totalOOCGames },
               ].map((stat) => (
                 <div
                   key={stat.label}
@@ -384,9 +451,7 @@ export default function Home() {
                       }`}
                     >
                       <td className="px-3 py-2 font-medium whitespace-nowrap sticky left-0 bg-inherit z-10">
-                        <span className="text-zinc-500 mr-1">
-                          #{row.rank}
-                        </span>
+                        <span className="text-zinc-500 mr-1">#{row.rank}</span>
                         {row.team}
                         <span className="text-zinc-600 ml-1 text-[10px]">
                           {row.conference}
