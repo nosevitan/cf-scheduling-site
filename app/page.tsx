@@ -261,10 +261,10 @@ export default function Home() {
               />
             </section>
 
-            {/* Protected Rivalries */}
+            {/* Additional Protected Rivalries */}
             <section>
               <label className="block text-sm font-medium text-zinc-300 mb-1">
-                Protected Rivalries
+                Additional Protected Rivalries
               </label>
               <p className="text-xs text-zinc-500 mb-2">
                 (one per line, e.g. Michigan vs Ohio State)
