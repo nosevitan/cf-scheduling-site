@@ -53,6 +53,8 @@ export default function Home() {
   const [conferencesFiller, setConferencesFiller] = useState("");
   const [rivalries, setRivalries] = useState("");
   const [additionalLocks, setAdditionalLocks] = useState("");
+  const [scheduleMode, setScheduleMode] = useState<"youtube" | "screenshots">("youtube");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
   const [screenshots, setScreenshots] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
@@ -83,7 +85,11 @@ export default function Home() {
       setError("Please enter team rankings");
       return;
     }
-    if (screenshots.length === 0) {
+    if (scheduleMode === "youtube" && !youtubeUrl.trim()) {
+      setError("Please enter a YouTube URL");
+      return;
+    }
+    if (scheduleMode === "screenshots" && screenshots.length === 0) {
       setError("Please upload schedule screenshots");
       return;
     }
@@ -102,18 +108,6 @@ export default function Home() {
     setResult(null);
 
     try {
-      // Step 1: Compress images
-      setStatus("Compressing screenshots...");
-      const compressed: Blob[] = [];
-      for (let i = 0; i < screenshots.length; i++) {
-        const blob = await compressImage(screenshots[i]);
-        compressed.push(blob);
-        setProgress(Math.round(((i + 1) / screenshots.length) * 40));
-      }
-
-      // Step 2: Build form data
-      setStatus("Uploading to server...");
-      setProgress(45);
       const formData = new FormData();
       formData.append("rankings", rankings);
       formData.append("conferences_user", conferencesUser);
@@ -121,16 +115,34 @@ export default function Home() {
       formData.append("rivalries", rivalries);
       formData.append("additional_locks", additionalLocks);
 
-      compressed.forEach((blob, i) => {
-        formData.append(
-          "screenshots",
+      if (scheduleMode === "youtube") {
+        setStatus("Sending YouTube URL to server...");
+        setProgress(10);
+        formData.append("youtube_url", youtubeUrl);
+      } else {
+        // Compress images
+        setStatus("Compressing screenshots...");
+        const compressed: Blob[] = [];
+        for (let i = 0; i < screenshots.length; i++) {
+          const blob = await compressImage(screenshots[i]);
+          compressed.push(blob);
+          setProgress(Math.round(((i + 1) / screenshots.length) * 40));
+        }
+        setStatus("Uploading to server...");
+        setProgress(45);
+        compressed.forEach((blob, i) => {
+          formData.append(
+            "screenshots",
           blob,
           screenshots[i].name || `screenshot_${i}.jpg`
         );
-      });
+        });
+      }
 
-      // Step 3: Send to server
-      setStatus("Processing with OCR (this may take a few minutes)...");
+      // Send to server
+      setStatus(scheduleMode === "youtube"
+        ? "Processing video (downloading, extracting frames, OCR — this may take 5-10 minutes)..."
+        : "Processing screenshots with OCR (this may take a few minutes)...");
       setProgress(50);
 
       const controller = new AbortController();
@@ -293,52 +305,91 @@ export default function Home() {
               />
             </section>
 
-            {/* Screenshots */}
+            {/* Schedule Data Input */}
             <section>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Schedule Screenshots
-                <span className="text-zinc-500 ml-2 font-normal">
-                  (2 per team — top half + bottom half)
-                </span>
-              </label>
-              <div
-                className="border-2 border-dashed border-zinc-700 rounded-lg p-8 text-center transition-colors hover:border-zinc-500"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleScreenshotDrop}
-              >
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  id="screenshot-upload"
-                  onChange={handleScreenshotSelect}
-                />
-                <label
-                  htmlFor="screenshot-upload"
-                  className="cursor-pointer space-y-2"
-                >
-                  <div className="text-3xl">&#128247;</div>
-                  <p className="text-zinc-400">
-                    Drag & drop screenshots here, or click to browse
-                  </p>
-                  <p className="text-xs text-zinc-600">
-                    Upload all team schedule screenshots (2 per team)
-                  </p>
+              <div className="flex items-center gap-4 mb-2">
+                <label className="block text-sm font-medium text-zinc-300">
+                  Schedule Data
                 </label>
-              </div>
-              {screenshots.length > 0 && (
-                <div className="mt-3 flex items-center justify-between">
-                  <p className="text-sm text-zinc-400">
-                    {screenshots.length} files selected (
-                    {Math.floor(screenshots.length / 2)} teams)
-                  </p>
+                <div className="flex gap-2 text-xs">
                   <button
-                    className="text-xs text-red-400 hover:text-red-300"
-                    onClick={() => setScreenshots([])}
+                    className={`px-3 py-1 rounded-full border ${
+                      scheduleMode === "youtube"
+                        ? "bg-blue-600 border-blue-500 text-white"
+                        : "border-zinc-600 text-zinc-400 hover:border-zinc-500"
+                    }`}
+                    onClick={() => setScheduleMode("youtube")}
                   >
-                    Clear all
+                    YouTube Video
                   </button>
+                  <button
+                    className={`px-3 py-1 rounded-full border ${
+                      scheduleMode === "screenshots"
+                        ? "bg-blue-600 border-blue-500 text-white"
+                        : "border-zinc-600 text-zinc-400 hover:border-zinc-500"
+                    }`}
+                    onClick={() => setScheduleMode("screenshots")}
+                  >
+                    Screenshots
+                  </button>
+                </div>
+              </div>
+
+              {scheduleMode === "youtube" ? (
+                <div>
+                  <p className="text-xs text-zinc-500 mb-2">
+                    Stream your PS5 to YouTube while scrolling through each team&apos;s Custom Schedule (~5-10 sec per team). Paste the video link below.
+                  </p>
+                  <input
+                    type="text"
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="https://youtube.com/watch?v=..."
+                    value={youtubeUrl}
+                    onChange={(e) => setYoutubeUrl(e.target.value)}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs text-zinc-500 mb-2">
+                    Upload 2 screenshots per team (top half + bottom half of schedule)
+                  </p>
+                  <div
+                    className="border-2 border-dashed border-zinc-700 rounded-lg p-8 text-center transition-colors hover:border-zinc-500"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleScreenshotDrop}
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      id="screenshot-upload"
+                      onChange={handleScreenshotSelect}
+                    />
+                    <label
+                      htmlFor="screenshot-upload"
+                      className="cursor-pointer space-y-2"
+                    >
+                      <div className="text-3xl">&#128247;</div>
+                      <p className="text-zinc-400">
+                        Drag & drop screenshots here, or click to browse
+                      </p>
+                    </label>
+                  </div>
+                  {screenshots.length > 0 && (
+                    <div className="mt-3 flex items-center justify-between">
+                      <p className="text-sm text-zinc-400">
+                        {screenshots.length} files selected (
+                        {Math.floor(screenshots.length / 2)} teams)
+                      </p>
+                      <button
+                        className="text-xs text-red-400 hover:text-red-300"
+                        onClick={() => setScreenshots([])}
+                      >
+                        Clear all
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </section>
